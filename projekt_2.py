@@ -77,7 +77,8 @@ if __name__ == "__main__":
 
     #prepare fingers right hand
     print("preparing fingers right hand")
-    dest_q = [math.pi/2,math.pi/2,math.pi/2,math.pi]
+    finger_angle = math.pi/1.7
+    dest_q = [finger_angle,finger_angle,finger_angle,math.pi]
     velma.moveHandRight(dest_q, [1,1,1,1], [2000,2000,2000,2000], 1000, hold=True)
     if velma.waitForHandRight() != 0:
         exitError(6)
@@ -85,7 +86,7 @@ if __name__ == "__main__":
 
     #close fingers left hand
     print("closing fingers left hand")
-    dest_q = [math.pi/2,math.pi/2,math.pi/2,math.pi]
+    dest_q = [finger_angle,finger_angle,finger_angle,math.pi]
     velma.moveHandLeft(dest_q, [1,1,1,1], [2000,2000,2000,2000], 1000, hold=True)
     if velma.waitForHandLeft() != 0:
         exitError(6)
@@ -128,16 +129,26 @@ if __name__ == "__main__":
             exitError(6)
     
     # step musi byc odpowiednio maly i miekka musi byc lapa
-    def grabHandle( step ):
+    def grabHandle(dist_ang):
         T_B_L_door = velma.getTf("B", "right_door")
+        print(" odczyt : ",T_B_L_door," typ : ", type(T_B_L_door.M))
         ldX,ldY,ldZ = T_B_L_door.p
         ldYaw,ldPitch,ldRoll = T_B_L_door.M.GetEulerZYX()
+        print("ldYaw : ",ldYaw," dist ang : ", dist_ang)
+        if ldYaw + dist_ang >= -math.pi/2 :
+            ldYaw = -math.pi/2
+        else :
+            ldYaw = ldYaw + dist_ang
+        print("ldYaw po : ", ldYaw)
         Rot = PyKDL.Rotation.RotZ(ldYaw + math.pi) 
-        tempX = ldX + math.sin(ldYaw) * 0.2835 + math.cos(ldYaw) * (0.3 + step)
-        tempY = ldY - math.cos(ldYaw) * 0.2835 + math.sin(ldYaw) * (0.3 + step)
-        Trans = PyKDL.Vector(tempX,tempY,ldZ + 0.7)
+        tempX = ldX + math.sin(ldYaw) * 0.2835 + math.cos(ldYaw) * (0.3)
+        tempY = ldY - math.cos(ldYaw) * 0.2835 + math.sin(ldYaw) * (0.3)
+        Trans = PyKDL.Vector(tempX,tempY,ldZ + 0.08)
         dest_cab = PyKDL.Frame(Rot,Trans)
-
+        return dest_cab
+    
+    def makeWrench(lx,ly,lz,rx,ry,rz):
+         return PyKDL.Wrench(PyKDL.Vector(lx,ly,lz), PyKDL.Vector(rx,ry,rz))
     # VELMA IS READY FOR MOVING 
     
 
@@ -156,7 +167,7 @@ if __name__ == "__main__":
     
 
     # UNTESTED NEEDS MORE TESTS
-    
+    """
     print("moving hand to cabinet")
     T_B_L_door = velma.getTf("B", "right_door")
     ldX,ldY,ldZ = T_B_L_door.p
@@ -169,5 +180,40 @@ if __name__ == "__main__":
     Trans = PyKDL.Vector(tempX,tempY,ldZ + 0.7)
     dest_cab = PyKDL.Frame(Rot,Trans)
     velma.moveCartImpRight([dest_cab], [4.0], None ,None , None, None, PyKDL.Wrench(PyKDL.Vector(5,5,5), PyKDL.Vector(5,5,5)), start_time=0.5)
+    grabHandle()    
+    
+    """
 
+    print("moving hand to cabinet")
+    T_B_L_door = velma.getTf("B", "right_door")
+    ldX,ldY,ldZ = T_B_L_door.p
+    ldYaw,ldPitch,ldRoll = T_B_L_door.M.GetEulerZYX()
+    Rot = PyKDL.Rotation.RotZ(ldYaw + math.pi) 
+    tempX = ldX + math.sin(ldYaw) * 0.21 + math.cos(ldYaw) * 0.25
+    tempY = ldY - math.cos(ldYaw) * 0.21 + math.sin(ldYaw) * 0.25
+    Trans = PyKDL.Vector(tempX,tempY,ldZ + 0.08)
+    dest_cab = PyKDL.Frame(Rot,Trans)
+    velma.moveCartImpRight([dest_cab], [4.0], None ,None , [makeWrench(1,1,1000,100,100,100)], [1], PyKDL.Wrench(PyKDL.Vector(5,5,5), PyKDL.Vector(5,5,5)), start_time=0.5)
+    if velma.waitForEffectorRight() != 0:
+        exitError(17)
+    rospy.sleep(0.5)
+    
+
+    print("grabbing handle")
+    dest = grabHandle(0)
+    velma.moveCartImpRight([dest], [4.0], None ,None , [makeWrench(100,100,1000,100,100,100)], [1], PyKDL.Wrench(PyKDL.Vector(5,5,5), PyKDL.Vector(5,5,5)), start_time=0.5)
+    if velma.waitForEffectorRight() != 0:
+        exitError(17)
+    rospy.sleep(0.5)
+
+    
+    for i in range(0,5):
+        print("dzialam ",i)
+        dest_cab = grabHandle(0.4)
+        velma.moveCartImpRight([dest_cab], [4.0], None ,None , [makeWrench(100,100,1000,100,100,100)], [1], PyKDL.Wrench(PyKDL.Vector(5,5,5), PyKDL.Vector(5,5,5)), start_time=0.5)
+        if velma.waitForEffectorRight() != 0:
+            exitError(17)
+        rospy.sleep(0.5)        
+        print("spie")    
+        rospy.sleep(1)
 
